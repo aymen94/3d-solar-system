@@ -46,6 +46,9 @@ web_modules/
 # Optional npm cache directory
 .npm
 
+# Editor 
+.vscode/
+
 # Optional eslint cache
 .eslintcache
 
