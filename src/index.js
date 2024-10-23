@@ -1,4 +1,5 @@
 import {
+  AmbientLight,
   PerspectiveCamera,
   Scene,
   Clock,
@@ -23,6 +24,7 @@ import {
   CanvasTexture,
   Raycaster,
   Vector2,
+  PCFSoftShadowMap,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GUI } from "lil-gui";
@@ -32,10 +34,14 @@ import { XRControllerModelFactory } from "three/examples/jsm/webxr/XRControllerM
 import sunTexture from "./textures/2k_sun.jpg";
 import planetData from "./planetData";
 
-import './styles.css';
+import "./styles.css";
 
 let camera, scene, renderer, controls, clock, gui, sun;
-let dateDiv, raycaster, mouse, infoDiv, targetPlanet = null;
+let dateDiv,
+  raycaster,
+  mouse,
+  infoDiv,
+  targetPlanet = null;
 console.log(planetData);
 
 const params = {
@@ -66,7 +72,16 @@ function init() {
 
   const sunlight = new DirectionalLight(0xffffff, 2);
   sunlight.position.set(5, 5, 5);
+  sunlight.castShadow = true;
+  sunlight.shadow.mapSize.width = 2048;
+  sunlight.shadow.mapSize.height = 2048;
+  sunlight.shadow.camera.near = 0.5;
+  sunlight.shadow.camera.far = 500;
+  sunlight.target = sun;
   scene.add(sunlight);
+
+  const ambientLight = new AmbientLight(0x404040, 0.5);
+  scene.add(ambientLight);
 
   raycaster = new Raycaster();
   mouse = new Vector2();
@@ -78,15 +93,18 @@ function init() {
     });
     const planetMesh = new Mesh(planetGeometry, planetMaterial);
     planetMesh.position.set(planet.distance, 0, 0);
+    planetMesh.castShadow = true;
+    planetMesh.receiveShadow = true;
     planetMesh.name = planet.name;
     scene.add(planetMesh);
+
+    planet.mesh = planetMesh;
 
     const orbitGeometry = new BufferGeometry().setFromPoints(getOrbitPoints(planet.distance));
     const orbitMaterial = new LineBasicMaterial({ color: 0xffffff });
     const orbitLine = new Line(orbitGeometry, orbitMaterial);
     scene.add(orbitLine);
 
-    planet.mesh = planetMesh;
     planet.angle = Math.random() * Math.PI * 2;
     planet.textureLoader = textureLoader;
 
@@ -148,6 +166,9 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = PCFSoftShadowMap;
+
   document.body.appendChild(renderer.domElement);
   document.body.appendChild(VRButton.createButton(renderer));
 
@@ -203,7 +224,7 @@ function init() {
   freeMovementButton.className = "free-movement-button";
   freeMovementButton.addEventListener("click", () => {
     infoDiv.style.display = "none";
-    targetPlanet = null; 
+    targetPlanet = null;
   });
   planetButtonsDiv.appendChild(freeMovementButton);
 
@@ -253,11 +274,11 @@ function onMouseClick(event) {
                 <p>${planet.description}</p>
      `;
 
-     targetPlanet = planet; 
+      targetPlanet = planet;
     }
   } else {
     infoDiv.style.display = "none";
-    targetPlanet = null;  
+    targetPlanet = null;
   }
 }
 
@@ -277,7 +298,12 @@ function animate() {
 
       planet.angle += planet.speed * params.orbitSpeed * delta;
       planet.mesh.position.set(Math.cos(planet.angle) * currentDistance, 0, Math.sin(planet.angle) * currentDistance);
-      planet.mesh.rotation.y += delta * 0.5;
+
+      const directionToSun = new Vector3().subVectors(sun.position, planet.mesh.position).normalize();
+
+      planet.mesh.lookAt(directionToSun);
+
+      planet.mesh.rotation.y += delta * 0.1;
 
       if (planet.hasRings) {
         planet.rings.position.set(Math.cos(planet.angle) * currentDistance, 0, Math.sin(planet.angle) * currentDistance);
@@ -299,7 +325,7 @@ function animate() {
   if (targetPlanet) {
     const targetPosition = new Vector3().copy(targetPlanet.mesh.position);
     const desiredCameraPosition = targetPosition.clone().add(new Vector3(5, 5, 5));
-    camera.position.lerp(desiredCameraPosition, 0.02); 
+    camera.position.lerp(desiredCameraPosition, 0.02);
     controls.target.copy(targetPlanet.mesh.position);
     controls.update();
   }
