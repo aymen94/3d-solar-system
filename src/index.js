@@ -49,7 +49,54 @@ const params = {
   starDensity: 99000,
 };
 
-init();
+function selectPlanet(planet) {
+  infoDiv.style.display = "block";
+  infoDiv.innerHTML = `
+    <h2>${planet.name}</h2>
+    <p><strong>Year Length:</strong> ${planet.yearLength} days</p>
+    <p><strong>Gravity:</strong> ${planet.gravity}</p>
+    <p><strong>Satellite:</strong> ${planet.satellite}</p>
+    <p>${planet.description}</p>
+  `;
+  targetPlanet = planet;
+}
+
+function selectSun() {
+  infoDiv.style.display = "block";
+  infoDiv.innerHTML = `
+    <h2>Sun</h2>
+    <p>The Sun is the star at the center of the Solar System.</p>
+    <p>It is a nearly perfect sphere of hot plasma, and it provides light and heat to the planets in the solar system.</p>
+  `;
+  targetPlanet = { mesh: sun };
+}
+
+function freeMovement() {
+  infoDiv.style.display = "none";
+  targetPlanet = null;
+}
+
+
+function initGUI() {
+  gui = new GUI();
+  gui.add(params, "orbitSpeed", 0.1, 2.0).name("Orbit Speed");
+
+  // Create a folder for planetary controls
+  const planetFolder = gui.addFolder("Planets");
+  planetData.forEach((planet) => {
+    planetFolder
+      .add({ selectPlanet: () => selectPlanet(planet) }, "selectPlanet")
+      .name(planet.name);
+  });
+
+  planetFolder
+    .add({ selectSun: () => selectSun() }, "selectSun")
+    .name("Sun");
+
+  planetFolder
+    .add({ freeMovement: () => freeMovement() }, "freeMovement")
+    .name("Free Movement");
+}
 
 function init() {
   clock = new Clock();
@@ -177,56 +224,8 @@ function init() {
   controls.minDistance = 5;
   controls.maxDistance = 50;
 
-  gui = new GUI();
-  gui.add(params, "orbitSpeed", 0.1, 2.0).name("Orbit Speed");
   window.addEventListener("resize", onWindowResize);
   window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("click", onMouseClick);
-
-  const planetButtonsDiv = document.createElement("div");
-  planetButtonsDiv.className = "planet-buttons";
-  document.body.appendChild(planetButtonsDiv);
-
-  planetData.forEach((planet) => {
-    const button = document.createElement("button");
-    button.textContent = planet.name;
-    button.className = "planet-button";
-    button.addEventListener("click", () => {
-      infoDiv.style.display = "block";
-      infoDiv.innerHTML = `
-                <h2>${planet.name}</h2>
-                <p><strong>Year Length:</strong> ${planet.yearLength} days</p>
-                <p><strong>gravity:</strong> ${planet.gravity}</p>
-                <p><strong>satellite:</strong> ${planet.satellite}</p>
-                <p>${planet.description}</p>
-      `;
-      targetPlanet = planet;
-    });
-    planetButtonsDiv.appendChild(button);
-  });
-
-  const sunButton = document.createElement("button");
-  sunButton.textContent = "Sun";
-  sunButton.className = "sun-button";
-  sunButton.addEventListener("click", () => {
-    infoDiv.style.display = "block";
-    infoDiv.innerHTML = `
-              <h2>Sun</h2>
-              <p>The Sun is the star at the center of the Solar System.</p>
-              <p>It is a nearly perfect sphere of hot plasma, and it provides light and heat to the planets in the solar system.</p>
-    `;
-    targetPlanet = { mesh: sun };
-  });
-  planetButtonsDiv.appendChild(sunButton);
-
-  const freeMovementButton = document.createElement("button");
-  freeMovementButton.textContent = "Free Movement";
-  freeMovementButton.className = "free-movement-button";
-  freeMovementButton.addEventListener("click", () => {
-    infoDiv.style.display = "none";
-    targetPlanet = null;
-  });
-  planetButtonsDiv.appendChild(freeMovementButton);
 
   dateDiv = document.createElement("div");
   dateDiv.className = "date-div";
@@ -256,30 +255,6 @@ function onWindowResize() {
 function onMouseMove(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-}
-
-function onMouseClick(event) {
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(scene.children);
-  if (intersects.length > 0) {
-    const clickedObject = intersects[0].object;
-    const planet = planetData.find((p) => p.mesh === clickedObject);
-    if (planet) {
-      infoDiv.style.display = "block";
-      infoDiv.innerHTML = `
-                <h2>${planet.name}</h2>
-                <p><strong>Year Length:</strong> ${planet.yearLength} days</p>
-                <p><strong>gravity:</strong> ${planet.gravity}</p>
-                <p><strong>satellite:</strong> ${planet.satellite}</p>
-                <p>${planet.description}</p>
-     `;
-
-      targetPlanet = planet;
-    }
-  } else {
-    infoDiv.style.display = "none";
-    targetPlanet = null;
-  }
 }
 
 function animate() {
@@ -338,4 +313,8 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+
+// main
+init();
+initGUI();
 renderer.setAnimationLoop(animate);
